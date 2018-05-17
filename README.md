@@ -5,8 +5,8 @@ I'm using the following components for Chopper:
  
 Dome Lights:
 Arduino Nano: https://www.amazon.com/gp/product/B0713XK923
-3 Individual Neopixels: https://www.amazon.com/kuman-WS2812B.../dp/B01M5BEO1C
-Two neopixel sticks: https://www.amazon.com/ACROBOTIC-8-P.../dp/B07BF7TG6Z
+3 Individual Neopixels: https://www.amazon.com/kuman-WS2812B-Addressable-Arduino-littlergb/dp/B01M5BEO1C
+Two neopixel sticks: https://www.amazon.com/ACROBOTIC-8-Pixel-Addressable-24-Bit-WS2812B/dp/B07BF7TG6Z
 
 Brain:
 Arduino Mega: https://www.amazon.com/gp/product/B01H4ZLZLQ
@@ -28,7 +28,7 @@ Sabertooth 32A: https://www.amazon.com/gp/product/B00O1722NG
 
 Two locally sourced Razor E100 scooters
 
-Main Power: https://hobbyking.com/en_us/multista...lipo-pack.html
+Main Power: https://hobbyking.com/en_us/multistar-high-capacity-4s-10000mah-multi-rotor-lipo-pack.html
 
 I bought two of those lipos if I need to combine them for more time. or voltage
 

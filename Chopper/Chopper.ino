@@ -182,7 +182,7 @@ void loop(){
   // After the controller connects, Blink all the LEDs so we know drives are disengaged at start
   if(!firstLoadOnConnect){
     firstLoadOnConnect = true;
-    char track[] = "T21     OGG";
+    char track[] = "T00     OGG";
     playAudioTrack(track, playing); 
     Xbox.setLedMode(ROTATING, 0);
   }
@@ -198,11 +198,11 @@ void loop(){
     if(isDriveEnabled){
       isDriveEnabled = false;
       Xbox.setLedMode(ROTATING, 0);
-      char track[] = "T45     OGG";
+      char track[] = "T33     OGG";
       playAudioTrack(track, playing);
     } else {
       isDriveEnabled = true;
-      char track[] = "T46     OGG";
+      char track[] = "T37     OGG";
       playAudioTrack(track, playing);
       
       //When the drive is enabled, set our LED accordingly to indicate speed
@@ -221,12 +221,52 @@ void loop(){
     if(isInAutomationMode){
       isInAutomationMode = false;
       automateAction = 0;
-      char track[] = "T47     OGG";
+      char track[] = "T37     OGG";
       playAudioTrack(track, playing);
     } else {
       isInAutomationMode = true;
-      char track[] = "T48     OGG";
+      char track[] = "T51     OGG";
       playAudioTrack(track, playing);
+    }
+  }
+
+  // Plays random sounds or dome movements for automations when in automation mode
+  if (isInAutomationMode) {
+    unsigned long currentMillis = millis();
+
+    if (currentMillis - automateMillis > (automateDelay * 1000)) {
+      automateMillis = millis();
+      automateAction = random(1, 5);
+
+      if (automateAction > 1) {
+        playAudio(random(20, 51),playing); 
+      }
+      
+      if (automateAction < 4) {
+        // set the direction
+        if( turnDirection > 0 ){
+          digitalWrite(domeDirPin, LOW);
+        } else {
+          digitalWrite(domeDirPin, HIGH);
+        }
+        // move the dome
+        analogWrite(domeSpeedPin, 200);
+
+        delay(750);
+        
+        // stop the dome
+        analogWrite(domeSpeedPin, 0);
+
+        // change the direction for the next go
+        if (turnDirection > 0) {
+          turnDirection = -45;
+        } else {
+          turnDirection = 45;
+        }
+      }
+
+      // sets the mix, max seconds between automation actions - sounds and dome movement
+      automateDelay = random(3,10);
     }
   }
 
@@ -235,7 +275,7 @@ void loop(){
   if(Xbox.getButtonClick(UP, 0)){
     // volume up
     if(Xbox.getButtonPress(R1, 0)){
-      sfx.volUp()
+      sfx.volUp();
     }
   }
   if(Xbox.getButtonClick(DOWN, 0)){
@@ -250,48 +290,57 @@ void loop(){
   // Y Button and Y combo buttons
   if(Xbox.getButtonClick(Y, 0)){
     if(Xbox.getButtonPress(L1, 0)){
-      char track[] = "T08     OGG";
+      char track[] = "T01     OGG";
       playAudioTrack(track, playing);
     } else if(Xbox.getButtonPress(L2, 0)){
-      char track[] = "T02     OGG";
+      char track[] = "T05     OGG";
       playAudioTrack(track, playing);
     } else if(Xbox.getButtonPress(R1, 0)){
       char track[] = "T09     OGG";
       playAudioTrack(track, playing);
+    } else if(Xbox.getButtonPress(R2, 0)){
+      char track[] = "T13     OGG";
+      playAudioTrack(track, playing);
     } else {
-      playAudio(random(0, 12),playing); 
+      playAudio(random(0, 14),playing); 
     }
   }
 
   // A Button and A combo Buttons
   if(Xbox.getButtonClick(A, 0)){
     if(Xbox.getButtonPress(L1, 0)){
-      char track[] = "T06     OGG";
+      char track[] = "T02     OGG";
       playAudioTrack(track, playing); 
     } else if(Xbox.getButtonPress(L2, 0)){
-      char track[] = "T01     OGG";
+      char track[] = "T06     OGG";
       playAudioTrack(track, playing);
     } else if(Xbox.getButtonPress(R1, 0)){
-      char track[] = "T11     OGG";
+      char track[] = "T10     OGG";
       playAudioTrack(track, playing); 
+    } else if(Xbox.getButtonPress(R2, 0)){
+      char track[] = "T14     OGG";
+      playAudioTrack(track, playing);
     } else {
-      playAudio(random(13, 25),playing);
+      playAudio(random(15, 28),playing);
     }
   }
 
   // B Button and B combo Buttons
   if(Xbox.getButtonClick(B, 0)){
     if(Xbox.getButtonPress(L1, 0)){
-      char track[] = "T07     OGG";
+      char track[] = "T03     OGG";
       playAudioTrack(track, playing);
     } else if(Xbox.getButtonPress(L2, 0)){
-      char track[] = "T03     OGG";
+      char track[] = "T07     OGG";
       playAudioTrack(track, playing); 
     } else if(Xbox.getButtonPress(R1, 0)){
-      char track[] = "T10     OGG";
+      char track[] = "T11     OGG";
+      playAudioTrack(track, playing);
+    } else if(Xbox.getButtonPress(R2, 0)){
+      char track[] = "T15     OGG";
       playAudioTrack(track, playing);
     } else {
-      playAudio(random(26, 39),playing);
+      playAudio(random(29, 42),playing);
     }
   }
 
@@ -299,16 +348,19 @@ void loop(){
   if(Xbox.getButtonClick(X, 0)){
     // leia message L1+X
     if(Xbox.getButtonPress(L1, 0)){
-      char track[] = "T05     OGG";
+      char track[] = "T04     OGG";
       playAudioTrack(track, playing);
     } else if(Xbox.getButtonPress(L2, 0)){
-      char track[] = "T04     OGG";
+      char track[] = "T08     OGG";
       playAudioTrack(track, playing);
     } else if(Xbox.getButtonPress(R1, 0)){
       char track[] = "T12     OGG";
       playAudioTrack(track, playing);
+    } else if(Xbox.getButtonPress(R2, 0)){
+      char track[] = "T16     OGG";
+      playAudioTrack(track, playing);
     } else {
-      playAudio(random(40, 51),playing);
+      playAudio(random(43, 51),playing);
     }
   }
 

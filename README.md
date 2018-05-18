@@ -1,5 +1,5 @@
 # Arduino Astromech Control System
-This has grown and is now full blown electronic package for dome rotation, sound, and motion based off Padawan360
+This has grown and is now full blown electronic package for dome rotation, sound, and motion based off Padawan360 (https://github.com/dankraus/padawan360)
 
 I'm using the following components for Chopper:
  

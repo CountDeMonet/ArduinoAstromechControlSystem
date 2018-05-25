@@ -27,7 +27,7 @@ is being used in a Chopper build.
 https://astromech.net/forums/showthread.php?34866-C0unt-s-Chopper-Build
 
 Hardware:
-Arduino Mega 2560
+Arduino Uno
 USB Host Shield
 Microsoft Xbox 360 Controller
 Xbox 360 USB Wireless Reciver
@@ -41,7 +41,7 @@ Set Sabertooth 2x32/2x25/2x12 Dip Switches 1 and 2 Down, All Others Up
 #include <Sabertooth.h>
 #include <XBOXRECV.h>
 #include <SoftwareSerial.h>
-#include "Adafruit_Soundboard.h"
+//#include "Adafruit_Soundboard.h"
 
 //************************** Set speed and turn speeds here************************************//
 
@@ -79,25 +79,26 @@ const int SABERTOOTHBAUDRATE = 9600;
 // serial modes so just manage and check it in software here
 // use the lowest number with no drift
 // DOMEDEADZONERANGE for the left stick, DRIVEDEADZONERANGE for the right stick
-const byte DOMEDEADZONERANGE = 20;
-const byte DRIVEDEADZONERANGE = 30;
+const byte DOMEDEADZONERANGE = 40;
+const byte DRIVEDEADZONERANGE = 20;
 
 /* define the pins in use */
-Sabertooth Sabertooth2x(128, Serial1);
+SoftwareSerial STSerial(NOT_A_PIN, 10);
+Sabertooth ST(128, STSerial);
 
 // dome controller 
-#define domeDirPin 2
-#define domeSpeedPin 3
+#define domeDirPin 6
+#define domeSpeedPin 7
 
 // soundboard pins and setup
-#define SFX_RST 4
-#define SFX_RX 5
-#define SFX_TX 6
-const int ACT = 7;    // this allows us to know if the audio is playing
+//#define SFX_RST 2
+//#define SFX_RX 3
+//#define SFX_TX 4
+//const int ACT = 5;    // this allows us to know if the audio is playing
 
 // init the audio board
-SoftwareSerial ss = SoftwareSerial(SFX_TX, SFX_RX);
-Adafruit_Soundboard sfx = Adafruit_Soundboard( &ss, NULL, SFX_RST);
+//SoftwareSerial ss = SoftwareSerial(SFX_TX, SFX_RX);
+//Adafruit_Soundboard sfx = Adafruit_Soundboard( &ss, NULL, SFX_RST);
 
 // Set some defaults for start up
 // 0 = full volume, 255 off
@@ -115,8 +116,8 @@ int turnDirection = 20;
 // Action number used to randomly choose a sound effect or a dome turn
 byte automateAction = 0;
 char driveThrottle = 0;
-int rightStick = 0;
 char sticknum = 0;
+char domeThrottle = 0;
 char turnThrottle = 0;
 
 boolean firstLoadOnConnect = false;
@@ -124,39 +125,37 @@ boolean firstLoadOnConnect = false;
 USB Usb;
 XBOXRECV Xbox(&Usb);
 
-void setup(){
+void setup(){    
   // softwareserial at 9600 baud for the audio board
-  ss.begin(9600);
-
+  //ss.begin(9600);
+  
   // see if we have the soundboard
   // If we fail to communicate, loop forever for now but it would be nice to warn the user somehow
-  if (!sfx.reset()) {
-    while (1);
-  }
-
+  //if (!sfx.reset()) {
+  //  while (1);
+  //}
+  
   // set act modes for the fx board
-  pinMode(ACT, INPUT);
+  //pinMode(ACT, INPUT);
+
+  // foot controller
+  STSerial.begin(9600);
+  ST.autobaud();
+  ST.setTimeout(950);
+  // The Sabertooth won't act on mixed mode packet serial commands until
+  // it has received power levels for BOTH throttle and turning, since it
+  // mixes the two together to get diff-drive power levels for both motors.
+  ST.drive(0);
+  ST.turn(0);
   
   // dome controller
   pinMode(domeDirPin, OUTPUT);
   pinMode(domeSpeedPin, OUTPUT);
-
-  // foot controller
-  Serial1.begin(SABERTOOTHBAUDRATE);
   
-  Sabertooth2x.autobaud();
-  // The Sabertooth won't act on mixed mode packet serial commands until
-  // it has received power levels for BOTH throttle and turning, since it
-  // mixes the two together to get diff-drive power levels for both motors.
-  Sabertooth2x.drive(0);
-  Sabertooth2x.turn(0);
-  Sabertooth2x.setTimeout(950);
-
-  // Wait for serial port to connect - used on Leonardo, Teensy and other boards with built-in USB CDC serial connection
   while (!Serial);
-    if (Usb.Init() == -1) {
-      while (1); //halt
-    }
+  if (Usb.Init() == -1) {
+    while (1); //halt
+  }
 }
 
 int prevPwmVal = -1;
@@ -165,14 +164,15 @@ void loop(){
   Usb.Task();
 
   // find out of the audio board is playing audio
-  int playing = digitalRead(ACT);
+  //int playing = digitalRead(ACT);
+  int playing = 1;
   
   // if we're not connected, return so we don't bother doing anything else.
   // set all movement to 0 so if we lose connection we don't have a runaway droid!
   // a restraining bolt and jawa droid caller won't save us here!
   if(!Xbox.XboxReceiverConnected || !Xbox.Xbox360Connected[0]){
-    Sabertooth2x.drive(0);
-    Sabertooth2x.turn(0);
+    ST.drive(0);
+    ST.turn(0);
     digitalWrite(domeDirPin, LOW);
     analogWrite(domeSpeedPin, 0);
     firstLoadOnConnect = false;
@@ -182,7 +182,7 @@ void loop(){
   // After the controller connects, Blink all the LEDs so we know drives are disengaged at start
   if(!firstLoadOnConnect){
     firstLoadOnConnect = true;
-    char track[] = "T00     OGG";
+    char track[] = "STARTSNDOGG";
     playAudioTrack(track, playing); 
     Xbox.setLedMode(ROTATING, 0);
   }
@@ -198,11 +198,11 @@ void loop(){
     if(isDriveEnabled){
       isDriveEnabled = false;
       Xbox.setLedMode(ROTATING, 0);
-      char track[] = "T33     OGG";
+      char track[] = "ANNOYED OGG";
       playAudioTrack(track, playing);
     } else {
       isDriveEnabled = true;
-      char track[] = "T37     OGG";
+      char track[] = "CHORTLE OGG";
       playAudioTrack(track, playing);
       
       //When the drive is enabled, set our LED accordingly to indicate speed
@@ -221,11 +221,11 @@ void loop(){
     if(isInAutomationMode){
       isInAutomationMode = false;
       automateAction = 0;
-      char track[] = "T37     OGG";
+      char track[] = "OVERHEREOGG";
       playAudioTrack(track, playing);
     } else {
       isInAutomationMode = true;
-      char track[] = "T51     OGG";
+      char track[] = "DOODOO  OGG";
       playAudioTrack(track, playing);
     }
   }
@@ -234,25 +234,25 @@ void loop(){
   if (isInAutomationMode) {
     unsigned long currentMillis = millis();
 
-    if (currentMillis - automateMillis > (automateDelay * 1000)) {
+    if ((unsigned long)(currentMillis - automateMillis) > (unsigned long)(automateDelay * 1000)) {
       automateMillis = millis();
       automateAction = random(1, 5);
 
       if (automateAction > 1) {
-        playAudio(random(20, 51),playing); 
+        playAudio(random(15, 49),playing); 
       }
       
       if (automateAction < 4) {
         // set the direction
         if( turnDirection > 0 ){
           digitalWrite(domeDirPin, LOW);
+          analogWrite(domeSpeedPin, 200);
         } else {
           digitalWrite(domeDirPin, HIGH);
+          analogWrite(domeSpeedPin, 210);
         }
-        // move the dome
-        analogWrite(domeSpeedPin, 200);
-
-        delay(750);
+        
+        delay(400);
         
         // stop the dome
         analogWrite(domeSpeedPin, 0);
@@ -266,7 +266,7 @@ void loop(){
       }
 
       // sets the mix, max seconds between automation actions - sounds and dome movement
-      automateDelay = random(3,10);
+      automateDelay = random(3,7);
     }
   }
 
@@ -275,13 +275,13 @@ void loop(){
   if(Xbox.getButtonClick(UP, 0)){
     // volume up
     if(Xbox.getButtonPress(R1, 0)){
-      sfx.volUp();
+      //sfx.volUp();
     }
   }
   if(Xbox.getButtonClick(DOWN, 0)){
     //volume down
     if(Xbox.getButtonPress(R1, 0)){
-      sfx.volDown();
+      //sfx.volDown();
     }
   }
 
@@ -297,9 +297,6 @@ void loop(){
       playAudioTrack(track, playing);
     } else if(Xbox.getButtonPress(R1, 0)){
       char track[] = "T09     OGG";
-      playAudioTrack(track, playing);
-    } else if(Xbox.getButtonPress(R2, 0)){
-      char track[] = "T13     OGG";
       playAudioTrack(track, playing);
     } else {
       playAudio(random(0, 14),playing); 
@@ -317,11 +314,8 @@ void loop(){
     } else if(Xbox.getButtonPress(R1, 0)){
       char track[] = "T10     OGG";
       playAudioTrack(track, playing); 
-    } else if(Xbox.getButtonPress(R2, 0)){
-      char track[] = "T14     OGG";
-      playAudioTrack(track, playing);
     } else {
-      playAudio(random(15, 28),playing);
+      playAudio(random(15, 49),playing);
     }
   }
 
@@ -336,11 +330,8 @@ void loop(){
     } else if(Xbox.getButtonPress(R1, 0)){
       char track[] = "T11     OGG";
       playAudioTrack(track, playing);
-    } else if(Xbox.getButtonPress(R2, 0)){
-      char track[] = "T15     OGG";
-      playAudioTrack(track, playing);
     } else {
-      playAudio(random(29, 42),playing);
+      playAudio(random(50, 57),playing);
     }
   }
 
@@ -356,11 +347,8 @@ void loop(){
     } else if(Xbox.getButtonPress(R1, 0)){
       char track[] = "T12     OGG";
       playAudioTrack(track, playing);
-    } else if(Xbox.getButtonPress(R2, 0)){
-      char track[] = "T16     OGG";
-      playAudioTrack(track, playing);
     } else {
-      playAudio(random(43, 51),playing);
+      playAudio(random(58, 71),playing);
     }
   }
 
@@ -389,26 +377,25 @@ void loop(){
   // Xbox 360 analog stick values are signed 16 bit integer value
   // Sabertooth runs at 8 bit signed. -127 to 127 for speed (full speed reverse and  full speed forward)
   // Map the 360 stick values to our min/max current drive speed
-  rightStick = (map(Xbox.getAnalogHat(RightHatY, 0), -32768, 32767, -drivespeed, drivespeed));
-  if (rightStick > -DRIVEDEADZONERANGE && rightStick < DRIVEDEADZONERANGE) {
+  sticknum = (map(Xbox.getAnalogHat(RightHatY, 0), -32768, 32767, -drivespeed, drivespeed));
+  if(sticknum > -DRIVEDEADZONERANGE && sticknum < DRIVEDEADZONERANGE){
     // stick is in dead zone - don't drive
     driveThrottle = 0;
   } else {
-    if (driveThrottle < rightStick) {
-      if (rightStick - driveThrottle < (RAMPING + 1) ) {
-        driveThrottle += RAMPING;
+    if(driveThrottle < sticknum){
+      if(sticknum - driveThrottle < (RAMPING+1) ){
+        driveThrottle+=RAMPING;
       } else {
-        driveThrottle = rightStick;
+        driveThrottle = sticknum;
       }
-    } else if (driveThrottle > rightStick) {
-      if (driveThrottle - rightStick < (RAMPING + 1) ) {
-        driveThrottle -= RAMPING;
+    } else if(driveThrottle > sticknum){
+      if(driveThrottle - sticknum < (RAMPING+1) ){
+        driveThrottle-=RAMPING;
       } else {
-        driveThrottle = rightStick;
+        driveThrottle = sticknum;
       }
     }
   }
-
   turnThrottle = map(Xbox.getAnalogHat(RightHatX, 0), -32768, 32767, -TURNSPEED, TURNSPEED);
 
   // DRIVE!
@@ -420,8 +407,8 @@ void loop(){
       // stick is in dead zone - don't turn
       turnThrottle = 0;
     }
-    Sabertooth2x.turn(-turnThrottle);
-    Sabertooth2x.drive(driveThrottle);
+    ST.turn(-turnThrottle);
+    ST.drive(driveThrottle);
   }
 
   // DOME DRIVE!
@@ -469,6 +456,7 @@ void loop(){
 /* ************* Audio Board Helper Functions ************* */
 // helper function to play a track by name on the audio board
 void playAudioTrack( char trackname[], int playing ) {
+  /*
   // stop track if one is going
   if (playing == 0) {
     sfx.stop();
@@ -478,10 +466,12 @@ void playAudioTrack( char trackname[], int playing ) {
   if (sfx.playTrack(trackname)) {
     sfx.unpause();
   }
+  */
 }
 
 // helper function to play a track by number on the audio board
 void playAudio( uint8_t tracknum, int playing ) {
+  /*
   // stop track if one is going
   if (playing == 0) {
     sfx.stop();
@@ -491,6 +481,6 @@ void playAudio( uint8_t tracknum, int playing ) {
   if (sfx.playTrack(tracknum)) {
     sfx.unpause();
   }
+  */
 }
-
 

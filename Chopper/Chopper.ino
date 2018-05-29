@@ -27,7 +27,7 @@ is being used in a Chopper build.
 https://astromech.net/forums/showthread.php?34866-C0unt-s-Chopper-Build
 
 Hardware:
-Arduino Uno
+Arduino Mega
 USB Host Shield
 Microsoft Xbox 360 Controller
 Xbox 360 USB Wireless Reciver
@@ -41,12 +41,12 @@ Set Sabertooth 2x32/2x25/2x12 Dip Switches 1 and 2 Down, All Others Up
 #include <Sabertooth.h>
 #include <XBOXRECV.h>
 #include <SoftwareSerial.h>
-//#include "Adafruit_Soundboard.h"
+#include "Adafruit_Soundboard.h"
 
 //************************** Set speed and turn speeds here************************************//
 
 //set these 3 to whatever speeds work for you. 0-stop, 127-full speed.
-const byte DRIVESPEED1 = 50;
+const byte DRIVESPEED1 = 70;
 //Recommend beginner: 50 to 75, experienced: 100 to 127, I like 100.
 const byte DRIVESPEED2 = 100;
 //Set to 0 if you only want 2 speeds.
@@ -56,7 +56,7 @@ byte drivespeed = DRIVESPEED1;
 
 // the higher this number the faster the droid will spin in place, lower - easier to control.
 // Recommend beginner: 40 to 50, experienced: 50 $ up, I like 70
-const byte TURNSPEED = 70;
+const byte TURNSPEED = 40;
 // If using a speed controller for the dome, sets the top speed. You'll want to vary it potenitally
 // depending on your motor. 
 const byte DOMESPEED = 230;
@@ -83,22 +83,18 @@ const byte DOMEDEADZONERANGE = 40;
 const byte DRIVEDEADZONERANGE = 20;
 
 /* define the pins in use */
-SoftwareSerial STSerial(NOT_A_PIN, 10);
-Sabertooth ST(128, STSerial);
+Sabertooth Sabertooth2x(128, Serial1);
 
 // dome controller 
-#define domeDirPin 6
-#define domeSpeedPin 7
+#define domeDirPin 2
+#define domeSpeedPin 3
 
 // soundboard pins and setup
-//#define SFX_RST 2
-//#define SFX_RX 3
-//#define SFX_TX 4
-//const int ACT = 5;    // this allows us to know if the audio is playing
+#define SFX_RST 30
+const int ACT = 32;    // this allows us to know if the audio is playing
 
 // init the audio board
-//SoftwareSerial ss = SoftwareSerial(SFX_TX, SFX_RX);
-//Adafruit_Soundboard sfx = Adafruit_Soundboard( &ss, NULL, SFX_RST);
+Adafruit_Soundboard sfx = Adafruit_Soundboard( &Serial2, NULL, SFX_RST);
 
 // Set some defaults for start up
 // 0 = full volume, 255 off
@@ -111,6 +107,8 @@ boolean isDriveEnabled = false;
 boolean isInAutomationMode = false;
 unsigned long automateMillis = 0;
 byte automateDelay = random(5,20);// set this to min and max seconds between sounds
+unsigned long autoMoveMillis = 0;
+unsigned long autoMoveDelay = 400; // how long the dome will move for
 //How much the dome may turn during automation.
 int turnDirection = 20;
 // Action number used to randomly choose a sound effect or a dome turn
@@ -127,26 +125,23 @@ XBOXRECV Xbox(&Usb);
 
 void setup(){    
   // softwareserial at 9600 baud for the audio board
-  //ss.begin(9600);
+  Serial2.begin(9600);
   
   // see if we have the soundboard
   // If we fail to communicate, loop forever for now but it would be nice to warn the user somehow
-  //if (!sfx.reset()) {
-  //  while (1);
-  //}
+  if (!sfx.reset()) {
+    while (1);
+  }
   
   // set act modes for the fx board
-  //pinMode(ACT, INPUT);
+  pinMode(ACT, INPUT);
 
   // foot controller
-  STSerial.begin(9600);
-  ST.autobaud();
-  ST.setTimeout(950);
-  // The Sabertooth won't act on mixed mode packet serial commands until
-  // it has received power levels for BOTH throttle and turning, since it
-  // mixes the two together to get diff-drive power levels for both motors.
-  ST.drive(0);
-  ST.turn(0);
+  Serial1.begin(SABERTOOTHBAUDRATE);
+  Sabertooth2x.autobaud();
+  Sabertooth2x.drive(0);
+  Sabertooth2x.turn(0);
+  Sabertooth2x.setTimeout(950);
   
   // dome controller
   pinMode(domeDirPin, OUTPUT);
@@ -159,6 +154,7 @@ void setup(){
 }
 
 int prevPwmVal = -1;
+bool isMoving = false;
 
 void loop(){
   Usb.Task();
@@ -171,8 +167,8 @@ void loop(){
   // set all movement to 0 so if we lose connection we don't have a runaway droid!
   // a restraining bolt and jawa droid caller won't save us here!
   if(!Xbox.XboxReceiverConnected || !Xbox.Xbox360Connected[0]){
-    ST.drive(0);
-    ST.turn(0);
+    Sabertooth2x.drive(0);
+    Sabertooth2x.turn(0);
     digitalWrite(domeDirPin, LOW);
     analogWrite(domeSpeedPin, 0);
     firstLoadOnConnect = false;
@@ -233,27 +229,35 @@ void loop(){
   // Plays random sounds or dome movements for automations when in automation mode
   if (isInAutomationMode) {
     unsigned long currentMillis = millis();
-
-    if ((unsigned long)(currentMillis - automateMillis) > (unsigned long)(automateDelay * 1000)) {
-      automateMillis = millis();
-      automateAction = random(1, 5);
-
-      if (automateAction > 1) {
-        playAudio(random(15, 49),playing); 
-      }
-      
-      if (automateAction < 4) {
-        // set the direction
-        if( turnDirection > 0 ){
-          digitalWrite(domeDirPin, LOW);
-          analogWrite(domeSpeedPin, 200);
-        } else {
-          digitalWrite(domeDirPin, HIGH);
-          analogWrite(domeSpeedPin, 210);
+    
+    if( !isMoving ){ 
+      if ((unsigned long)(currentMillis - automateMillis) > (unsigned long)(automateDelay * 1000)) {
+        automateMillis = millis();
+        automateAction = random(1, 5);
+  
+        if (automateAction > 1) {
+          playAudio(random(15, 49),playing); 
         }
         
-        delay(400);
-        
+        if (automateAction < 4) {
+          // set the direction
+          if( turnDirection > 0 ){
+            digitalWrite(domeDirPin, LOW);
+            analogWrite(domeSpeedPin, 200);
+          } else {
+            digitalWrite(domeDirPin, HIGH);
+            analogWrite(domeSpeedPin, 210);
+          }
+
+          autoMoveMillis = millis();
+          isMoving = true;
+        }else{
+          // sets the mix, max seconds between automation actions - sounds and dome movement
+          automateDelay = random(3,7);
+        }
+      }
+    }else{
+      if ((unsigned long)(currentMillis - autoMoveMillis) > autoMoveDelay) {
         // stop the dome
         analogWrite(domeSpeedPin, 0);
 
@@ -263,10 +267,11 @@ void loop(){
         } else {
           turnDirection = 45;
         }
-      }
 
-      // sets the mix, max seconds between automation actions - sounds and dome movement
-      automateDelay = random(3,7);
+        isMoving = false;
+        // sets the mix, max seconds between automation actions - sounds and dome movement
+        automateDelay = random(3,7);
+      }
     }
   }
 
@@ -275,13 +280,13 @@ void loop(){
   if(Xbox.getButtonClick(UP, 0)){
     // volume up
     if(Xbox.getButtonPress(R1, 0)){
-      //sfx.volUp();
+      sfx.volUp();
     }
   }
   if(Xbox.getButtonClick(DOWN, 0)){
     //volume down
     if(Xbox.getButtonPress(R1, 0)){
-      //sfx.volDown();
+      sfx.volDown();
     }
   }
 
@@ -407,8 +412,8 @@ void loop(){
       // stick is in dead zone - don't turn
       turnThrottle = 0;
     }
-    ST.turn(-turnThrottle);
-    ST.drive(driveThrottle);
+    Sabertooth2x.turn(-turnThrottle);
+    Sabertooth2x.drive(driveThrottle);
   }
 
   // DOME DRIVE!
@@ -456,7 +461,6 @@ void loop(){
 /* ************* Audio Board Helper Functions ************* */
 // helper function to play a track by name on the audio board
 void playAudioTrack( char trackname[], int playing ) {
-  /*
   // stop track if one is going
   if (playing == 0) {
     sfx.stop();
@@ -466,12 +470,10 @@ void playAudioTrack( char trackname[], int playing ) {
   if (sfx.playTrack(trackname)) {
     sfx.unpause();
   }
-  */
 }
 
 // helper function to play a track by number on the audio board
 void playAudio( uint8_t tracknum, int playing ) {
-  /*
   // stop track if one is going
   if (playing == 0) {
     sfx.stop();
@@ -481,6 +483,4 @@ void playAudio( uint8_t tracknum, int playing ) {
   if (sfx.playTrack(tracknum)) {
     sfx.unpause();
   }
-  */
 }
-

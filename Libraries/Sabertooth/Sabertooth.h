@@ -1,6 +1,6 @@
 /*
-Arduino Library for SyRen/Sabertooth
-Copyright (c) 2012 Dimension Engineering LLC
+Arduino Library for SyRen/Sabertooth Packet Serial
+Copyright (c) 2012-2013 Dimension Engineering LLC
 http://www.dimensionengineering.com/arduino
 
 Permission to use, copy, modify, and/or distribute this software for any
@@ -19,76 +19,161 @@ USE OR PERFORMANCE OF THIS SOFTWARE.
 #ifndef Sabertooth_h
 #define Sabertooth_h   
 
+#if defined(ARDUINO) && ARDUINO >= 100
 #include <Arduino.h>
+typedef Stream SabertoothStream;
+#else
+#include <WProgram.h>
+typedef Print SabertoothStream;
+#endif
 
+#if defined(USBCON)
+#define SabertoothTXPinSerial Serial1 // Arduino Leonardo has TX->1 on Serial1, not Serial.
+#else
+#define SabertoothTXPinSerial Serial
+#endif
+#define SyRenTXPinSerial SabertoothTXPinSerial
+
+/*!
+\class Sabertooth
+\brief Controls a %Sabertooth or %SyRen motor driver running in Packet Serial mode.
+*/
 class Sabertooth
 {
 public:
+  /*!
+  Initializes a new instance of the Sabertooth class.
+  The driver address is set to the value given, and the Arduino TX serial port is used.
+  \param address The driver address.
+  */
   Sabertooth(byte address);
-  Sabertooth(byte address, Stream& port);
+  
+  /*!
+  Initializes a new instance of the Sabertooth class.
+  The driver address is set to the value given, and the specified serial port is used.
+  \param address The driver address.
+  \param port    The port to use.
+  */
+  Sabertooth(byte address, SabertoothStream& port);
 
 public:
-  inline byte    address() const { return _address; }
-  inline Stream& port   () const { return _port;    }
+  /*!
+  Gets the driver address.
+  \return The driver address.
+  */
+  inline byte address() const { return _address; }
+  
+  /*!
+  Gets the serial port.
+  \return The serial port.
+  */
+  inline SabertoothStream& port() const { return _port; }
 
+  /*!
+  Sends the autobaud character.
+  \param dontWait If false, a delay is added to give the driver time to start up.
+  */
   void autobaud(boolean dontWait = false) const;
-  void command (byte command, byte value) const;
   
-  static void autobaud(Stream& port, boolean dontWait = false);
+  /*!
+  Sends the autobaud character.
+  \param port     The port to use.
+  \param dontWait If false, a delay is added to give the driver time to start up.
+  */
+  static void autobaud(SabertoothStream& port, boolean dontWait = false);
+  
+  /*!
+  Sends a packet serial command to the motor driver.
+  \param command The number of the command.
+  \param value   The command's value.
+  */
+  void command(byte command, byte value) const;
   
 public:
+  /*!
+  Sets the power of motor 1.
+  \param power The power, between -127 and 127.
+  */
+  void motor(int power) const;
+  
+  /*!
+  Sets the power of the specified motor.
+  \param motor The motor number, 1 or 2.
+  \param power The power, between -127 and 127.
+  */
   void motor(byte motor, int power) const;
-  void drive            (int power) const;
-  void turn             (int power) const;
+  
+  /*!
+  Sets the driving power.
+  \param power The power, between -127 and 127.
+  */
+  void drive(int power) const;
+  
+  /*!
+  Sets the turning power.
+  \param power The power, between -127 and 127.
+  */
+  void turn(int power) const;
+  
+  /*!
+  Stops.
+  */
+  void stop() const;
   
 public:
+  /*!
+  Sets the minimum voltage.
+  \param value The voltage. The units of this value are driver-specific and are specified in the Packet Serial chapter of the driver's user manual.
+  */
   void setMinVoltage(byte value) const;
+  
+  /*!
+  Sets the maximum voltage.
+  Maximum voltage is stored in EEPROM, so changes persist between power cycles.
+  \param value The voltage. The units of this value are driver-specific and are specified in the Packet Serial chapter of the driver's user manual.
+  */
   void setMaxVoltage(byte value) const;
-  void setBaudRate  (long baudRate) const;
-  void setDeadband  (byte value) const;
-  void setRamping   (byte value) const;
-  void setTimeout   (int  milliseconds) const;
+  
+  /*!
+  Sets the baud rate.
+  Baud rate is stored in EEPROM, so changes persist between power cycles.
+  \param baudRate The baud rate. This can be 2400, 9600, 19200, 38400, or on some drivers 115200.
+  */
+  void setBaudRate(long baudRate) const;
+  
+  /*!
+  Sets the deadband.
+  Deadband is stored in EEPROM, so changes persist between power cycles.
+  \param value The deadband value.
+               Motor powers in the range [-deadband, deadband] will be considered in the deadband, and will
+               not prevent the driver from entering nor cause the driver to leave an idle brake state.
+               0 resets to the default, which is 3.
+  */
+  void setDeadband(byte value) const;
+  
+  /*!
+  Sets the ramping.
+  Ramping is stored in EEPROM, so changes persist between power cycles.
+  \param value The ramping value. Consult the user manual for possible values.
+  */
+  void setRamping(byte value) const;
+  
+  /*!
+  Sets the serial timeout.
+  \param milliseconds The maximum time in milliseconds between packets. If this time is exceeded,
+                      the driver will stop the motors. This value is rounded up to the nearest 100 milliseconds.
+                      This library assumes the command value is in units of 100 milliseconds. This is true for
+                      most drivers, but not all. Check the packet serial chapter of the driver's user manual
+                      to make sure.
+  */
+  void setTimeout(int milliseconds) const;
   
 private:
-  const byte _address;
-  Stream&    _port; 
-};
-
-class SabertoothPacket
-{
-public:
-  SabertoothPacket(byte command, byte value);
-
-public:
-  inline byte command () const { return _command; }
-  inline byte value   () const { return _value;   }
-  
-  byte checksum(byte address) const;
-  void getBytes(byte address, byte bytes[4]) const;
-
-public:
-  void send(byte address) const;
-  void send(byte address, Stream& port) const;
-  void send(const Sabertooth& sabertooth) const;
-  
-public:
-  static SabertoothPacket motor(byte motor, int power);
-  static SabertoothPacket drive            (int power);
-  static SabertoothPacket turn             (int power);
-
-public:
-  static SabertoothPacket setMinVoltage(byte value);
-  static SabertoothPacket setMaxVoltage(byte value);
-  static SabertoothPacket setBaudRate  (long baudRate);
-  static SabertoothPacket setDeadband  (byte value);
-  static SabertoothPacket setRamping   (byte value);
-  static SabertoothPacket setTimeout   (int  milliseconds);
-
-private:
-  static SabertoothPacket throttleType(byte command, int power);
+  void throttleCommand(byte command, int power) const;
   
 private:
-  byte _command, _value;
+  const byte        _address;
+  SabertoothStream& _port; 
 };
 
 #endif

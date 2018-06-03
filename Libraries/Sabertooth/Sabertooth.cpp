@@ -1,6 +1,6 @@
 /*
-Arduino Library for SyRen/Sabertooth
-Copyright (c) 2012 Dimension Engineering LLC
+Arduino Library for SyRen/Sabertooth Packet Serial
+Copyright (c) 2012-2013 Dimension Engineering LLC
 http://www.dimensionengineering.com/arduino
 
 Permission to use, copy, modify, and/or distribute this software for any
@@ -19,12 +19,12 @@ USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "Sabertooth.h"
 
 Sabertooth::Sabertooth(byte address)
-  : _address(address), _port(Serial)
+  : _address(address), _port(SabertoothTXPinSerial)
 {
   
 }
 
-Sabertooth::Sabertooth(byte address, Stream& port)
+Sabertooth::Sabertooth(byte address, SabertoothStream& port)
   : _address(address), _port(port)
 {
 
@@ -35,49 +35,87 @@ void Sabertooth::autobaud(boolean dontWait) const
   autobaud(port(), dontWait);
 }
 
-void Sabertooth::autobaud(Stream& port, boolean dontWait)
+void Sabertooth::autobaud(SabertoothStream& port, boolean dontWait)
 {
   if (!dontWait) { delay(1500); }
   port.write(0xAA);
+#if defined(ARDUINO) && ARDUINO >= 100
   port.flush();
+#endif
   if (!dontWait) { delay(500); }
 }
 
 void Sabertooth::command(byte command, byte value) const
 {
-  SabertoothPacket(command, value).send(*this);
+  port().write(address());
+  port().write(command);
+  port().write(value);
+  port().write((address() + command + value) & B01111111);
+}
+
+void Sabertooth::throttleCommand(byte command, int power) const
+{
+  power = constrain(power, -126, 126);
+  this->command(command, (byte)abs(power));
+}
+
+void Sabertooth::motor(int power) const
+{
+  motor(1, power);
 }
 
 void Sabertooth::motor(byte motor, int power) const
 {
-  SabertoothPacket::motor(motor, power).send(*this);
+  if (motor < 1 || motor > 2) { return; }
+  throttleCommand((motor == 2 ? 4 : 0) + (power < 0 ? 1 : 0), power);
 }
 
 void Sabertooth::drive(int power) const
 {
-  SabertoothPacket::drive(power).send(*this);
+  throttleCommand(power < 0 ? 9 : 8, power);
 }
 
 void Sabertooth::turn(int power) const
 {
-  SabertoothPacket::turn(power).send(*this);
+  throttleCommand(power < 0 ? 11 : 10, power);
+}
+
+void Sabertooth::stop() const
+{
+  motor(1, 0);
+  motor(2, 0);
 }
 
 void Sabertooth::setMinVoltage(byte value) const
 {
-  SabertoothPacket::setMinVoltage(value).send(*this);  
+  command(2, (byte)min(value, 120));
 }
 
 void Sabertooth::setMaxVoltage(byte value) const
 {
-  SabertoothPacket::setMaxVoltage(value).send(*this);  
+  command(3, (byte)min(value, 127));
 }
 
 void Sabertooth::setBaudRate(long baudRate) const
 {
+#if defined(ARDUINO) && ARDUINO >= 100
   port().flush();
-  SabertoothPacket::setBaudRate(baudRate).send(*this);
+#endif
+
+  byte value;
+  switch (baudRate)
+  {
+  case 2400:           value = 1; break;
+  case 9600: default: value = 2; break;
+  case 19200:          value = 3; break;
+  case 38400:          value = 4; break;
+  case 115200:         value = 5; break;
+  }
+  command(15, value);
+  
+#if defined(ARDUINO) && ARDUINO >= 100
   port().flush();
+#endif
   
   // (1) flush() does not seem to wait until transmission is complete.
   //     As a result, a Serial.end() directly after this appears to
@@ -90,111 +128,15 @@ void Sabertooth::setBaudRate(long baudRate) const
 
 void Sabertooth::setDeadband(byte value) const
 {
-  SabertoothPacket::setDeadband(value).send(*this);
+  command(17, (byte)min(value, 127));
 }
 
 void Sabertooth::setRamping(byte value) const
 {
-  SabertoothPacket::setRamping(value).send(*this);
+  command(16, (byte)constrain(value, 0, 80));
 }
 
 void Sabertooth::setTimeout(int milliseconds) const
 {
-  SabertoothPacket::setTimeout(milliseconds).send(*this);
-}
-
-SabertoothPacket::SabertoothPacket(byte command, byte value)
-  : _command(command), _value(value)
-{
-  
-}
-
-byte SabertoothPacket::checksum(byte address) const
-{
-  return (address + command() + value()) & B01111111;
-}
-
-void SabertoothPacket::getBytes(byte address, byte bytes[4]) const
-{
-  bytes[0] = address;
-  bytes[1] = command();
-  bytes[2] = value();
-  bytes[3] = checksum(address);
-}
-
-void SabertoothPacket::send(byte address) const
-{
-  send(address, Serial);
-}
-
-void SabertoothPacket::send(byte address, Stream& port) const
-{
-  byte bytes[4];
-  getBytes(address, bytes);
-  port.write(bytes, 4);
-}
-
-void SabertoothPacket::send(const Sabertooth& sabertooth) const
-{
-  send(sabertooth.address(), sabertooth.port());
-}
-
-SabertoothPacket SabertoothPacket::motor(byte motor, int power)
-{
-  return throttleType((motor == 2 ? 4 : 0) + (power < 0 ? 1 : 0), power);
-}
-
-SabertoothPacket SabertoothPacket::drive(int power)
-{
-  return throttleType(power < 0 ? 9 : 8, power);
-}
-
-SabertoothPacket SabertoothPacket::turn(int power)
-{
-  return throttleType(power < 0 ? 11 : 10, power);
-}
-
-SabertoothPacket SabertoothPacket::setMinVoltage(byte value)
-{
-  return SabertoothPacket(2, (byte)min(value, 120));
-}
-
-SabertoothPacket SabertoothPacket::setMaxVoltage(byte value)
-{
-  return SabertoothPacket(3, (byte)min(value, 127));
-}
-
-SabertoothPacket SabertoothPacket::setBaudRate(long baudRate)
-{
-  byte value;
-  switch (baudRate)
-  {
-  case 2400:           value = 1; break;
-  case 9600: default: value = 2; break;
-  case 19200:          value = 3; break;
-  case 38400:          value = 4; break;
-  case 115200:         value = 5; break;
-  }
-  return SabertoothPacket(15, value);
-}
-
-SabertoothPacket SabertoothPacket::setDeadband(byte value)
-{
-  return SabertoothPacket(17, (byte)min(value, 127));
-}
-
-SabertoothPacket SabertoothPacket::setRamping(byte value)
-{
-  return SabertoothPacket(16, (byte)constrain(value, 0, 80));
-}
-
-SabertoothPacket SabertoothPacket::setTimeout(int milliseconds)
-{
-  return SabertoothPacket(14, (byte)((constrain(milliseconds, 0, 12700) + 99) / 100));
-}
-
-SabertoothPacket SabertoothPacket::throttleType(byte command, int power)
-{
-  power = constrain(power, -127, 127);
-  return SabertoothPacket(command, (byte)abs(power));
+  command(14, (byte)((constrain(milliseconds, 0, 12700) + 99) / 100));
 }

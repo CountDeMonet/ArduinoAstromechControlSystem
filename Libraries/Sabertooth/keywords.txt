@@ -2,18 +2,11 @@
 
 # Classes
 Sabertooth	KEYWORD1
-SabertoothPacket	KEYWORD1
 
 # Sabertooth methods
 address	KEYWORD2
 port	KEYWORD2
 autobaud	KEYWORD2
-
-# SabertoothPacket methods
-value	KEYWORD2
-checksum	KEYWORD2
-getBytes	KEYWORD2
-send	KEYWORD2
 
 # Common methods
 command	KEYWORD2
@@ -26,3 +19,4 @@ setBaudRate	KEYWORD2
 setDeadband	KEYWORD2
 setRamping	KEYWORD2
 setTimeout	KEYWORD2
+stop	KEYWORD2

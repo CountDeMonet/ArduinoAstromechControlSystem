@@ -61,10 +61,6 @@ const byte TURNSPEED = 40;
 // depending on your motor.
 const byte DOMESPEED = 230;
 
-// Ramping- the lower this number the longer R2 will take to speedup or slow down,
-// change this by incriments of 1
-const byte RAMPING = 5;
-
 // Set the baude rate for the Sabertooth motor controller (feet)
 // 9600 is the default baud rate for Sabertooth packet serial.
 // for packetized options are: 2400, 9600, 19200 and 38400. I think you need to pick one that works
@@ -384,17 +380,9 @@ void loop() {
     driveThrottle = 0;
   } else {
     if (driveThrottle < sticknum) {
-      if (sticknum - driveThrottle < (RAMPING + 1) ) {
-        driveThrottle += RAMPING;
-      } else {
-        driveThrottle = sticknum;
-      }
+      driveThrottle = sticknum;
     } else if (driveThrottle > sticknum) {
-      if (driveThrottle - sticknum < (RAMPING + 1) ) {
-        driveThrottle -= RAMPING;
-      } else {
-        driveThrottle = sticknum;
-      }
+      driveThrottle = sticknum;
     }
   }
   turnThrottle = map(Xbox.getAnalogHat(RightHatX, 0), -32768, 32767, -TURNSPEED, TURNSPEED);
@@ -402,8 +390,7 @@ void loop() {
   // DRIVE!
   // right stick (drive)
   if (isDriveEnabled) {
-    // Only do deadzone check for turning here. Our Drive throttle speed has some math applied
-    // for RAMPING and stuff, so just keep it separate here
+    // Only do deadzone check for turning here.
     if (turnThrottle > -DRIVEDEADZONERANGE && turnThrottle < DRIVEDEADZONERANGE) {
       // stick is in dead zone - don't turn
       turnThrottle = 0;

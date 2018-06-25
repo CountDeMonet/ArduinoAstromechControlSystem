@@ -46,7 +46,7 @@
 //************************** Set speed and turn speeds here************************************//
 
 //set these 3 to whatever speeds work for you. 0-stop, 127-full speed.
-const byte DRIVESPEED1 = 70;
+const byte DRIVESPEED1 = 80;
 //Recommend beginner: 50 to 75, experienced: 100 to 127, I like 100.
 const byte DRIVESPEED2 = 100;
 //Set to 0 if you only want 2 speeds.
@@ -75,7 +75,7 @@ const int SABERTOOTHBAUDRATE = 9600;
 // serial modes so just manage and check it in software here
 // use the lowest number with no drift
 // DOMEDEADZONERANGE for the left stick, DRIVEDEADZONERANGE for the right stick
-const byte DOMEDEADZONERANGE = 40;
+const byte DOMEDEADZONERANGE = 45;
 const byte DRIVEDEADZONERANGE = 20;
 
 /* define the pins in use */
@@ -102,9 +102,9 @@ boolean isInAutomationMode = false;
 unsigned long automateMillis = 0;
 byte automateDelay = random(5, 10); // set this to min and max seconds between sounds
 unsigned long autoMoveMillis = 0;
-unsigned long autoMoveDelay = 500; // how long the dome will move for
+unsigned long autoMoveDelay = 400; // how long the dome will move for
 bool isMoving = false;  // is the dome rotating due to automation
-int turnDirection = 20;	// which direction to turn
+byte turnDirection = 1;  // which direction to turn
 // Action number used to randomly choose a sound effect or a dome turn
 byte automateAction = 0;
 char driveThrottle = 0;
@@ -150,9 +150,12 @@ void setup() {
 void loop() {
   Usb.Task();
 
+  bool needToPlayAudio = false;
+  int randomAudioTrack = -1;
+  char nextAudioTrack[12] = "SHORTCKTOGG";
+
   // find out of the audio board is playing audio
-  //int playing = digitalRead(ACT);
-  int playing = 1;
+  int playing = digitalRead(ACT);
 
   // if we're not connected, return so we don't bother doing anything else.
   // set all movement to 0 so if we lose connection we don't have a runaway droid!
@@ -169,8 +172,8 @@ void loop() {
   // After the controller connects, Blink all the LEDs so we know drives are disengaged at start
   if (!firstLoadOnConnect) {
     firstLoadOnConnect = true;
-    char track[] = "STARTSNDOGG";
-    playAudioTrack(track, playing);
+    strncpy(nextAudioTrack, "STARTSNDOGG", 12);
+    needToPlayAudio = true;
     Xbox.setLedMode(ROTATING, 0);
   }
 
@@ -185,12 +188,12 @@ void loop() {
     if (isDriveEnabled) {
       isDriveEnabled = false;
       Xbox.setLedMode(ROTATING, 0);
-      char track[] = "ANNOYED OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "ANNOYED OGG", 12);
+      needToPlayAudio = true;
     } else {
       isDriveEnabled = true;
-      char track[] = "CHORTLE OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "CHORTLE OGG", 12);
+      needToPlayAudio = true;
 
       //When the drive is enabled, set our LED accordingly to indicate speed
       if (drivespeed == DRIVESPEED1) {
@@ -208,12 +211,12 @@ void loop() {
     if (isInAutomationMode) {
       isInAutomationMode = false;
       automateAction = 0;
-      char track[] = "OVERHEREOGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "OVERHEREOGG", 12);
+      needToPlayAudio = true;
     } else {
       isInAutomationMode = true;
-      char track[] = "DOODOO  OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "DOODOO  OGG", 12);
+      needToPlayAudio = true;
     }
   }
 
@@ -227,7 +230,8 @@ void loop() {
         automateAction = random(1, 5);
 
         if (automateAction > 1) {
-          playAudio(random(15, 49), playing);
+          needToPlayAudio = true;
+          randomAudioTrack = 5;
         }
 
         if (automateAction < 4) {
@@ -254,9 +258,9 @@ void loop() {
 
         // change the direction for the next go
         if (turnDirection > 0) {
-          turnDirection = -20;
+          turnDirection = -1;
         } else {
-          turnDirection = 20;
+          turnDirection = 1;
         }
 
         isMoving = false;
@@ -287,48 +291,51 @@ void loop() {
   // Y Button and Y combo buttons
   if (Xbox.getButtonClick(Y, 0)) {
     if (Xbox.getButtonPress(L1, 0)) {
-      char track[] = "T01     OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "T01     OGG", 12);
+      needToPlayAudio = true;
     } else if (Xbox.getButtonPress(L2, 0)) {
-      char track[] = "T05     OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "T05     OGG", 12);
+      needToPlayAudio = true;
     } else if (Xbox.getButtonPress(R1, 0)) {
-      char track[] = "T09     OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "T09     OGG", 12);
+      needToPlayAudio = true;
     } else {
-      playAudio(random(0, 14), playing);
+      needToPlayAudio = true;
+      randomAudioTrack = 1;
     }
   }
 
   // A Button and A combo Buttons
   if (Xbox.getButtonClick(A, 0)) {
     if (Xbox.getButtonPress(L1, 0)) {
-      char track[] = "T02     OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "T02     OGG", 12);
+      needToPlayAudio = true;
     } else if (Xbox.getButtonPress(L2, 0)) {
-      char track[] = "T06     OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "T06     OGG", 12);
+      needToPlayAudio = true;
     } else if (Xbox.getButtonPress(R1, 0)) {
-      char track[] = "T10     OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "T10     OGG", 12);
+      needToPlayAudio = true;
     } else {
-      playAudio(random(15, 49), playing);
+      needToPlayAudio = true;
+      randomAudioTrack = 2;
     }
   }
 
   // B Button and B combo Buttons
   if (Xbox.getButtonClick(B, 0)) {
     if (Xbox.getButtonPress(L1, 0)) {
-      char track[] = "T03     OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "T03     OGG", 12);
+      needToPlayAudio = true;
     } else if (Xbox.getButtonPress(L2, 0)) {
-      char track[] = "T07     OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "T07     OGG", 12);
+      needToPlayAudio = true;
     } else if (Xbox.getButtonPress(R1, 0)) {
-      char track[] = "T11     OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "T11     OGG", 12);
+      needToPlayAudio = true;
     } else {
-      playAudio(random(50, 57), playing);
+      needToPlayAudio = true;
+      randomAudioTrack = 3;
     }
   }
 
@@ -336,16 +343,18 @@ void loop() {
   if (Xbox.getButtonClick(X, 0)) {
     // leia message L1+X
     if (Xbox.getButtonPress(L1, 0)) {
-      char track[] = "T04     OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "T04     OGG", 12);
+      needToPlayAudio = true;
     } else if (Xbox.getButtonPress(L2, 0)) {
-      char track[] = "T08     OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "T08     OGG", 12);
+      needToPlayAudio = true;
     } else if (Xbox.getButtonPress(R1, 0)) {
-      char track[] = "T12     OGG";
-      playAudioTrack(track, playing);
+      strncpy(nextAudioTrack, "T12     OGG", 12);
+      needToPlayAudio = true;
     } else {
-      playAudio(random(58, 71), playing);
+      needToPlayAudio = true;
+      randomAudioTrack = 4;
+
     }
   }
 
@@ -399,18 +408,18 @@ void loop() {
     Sabertooth2x.drive(driveThrottle);
   }
 
-  // DOME DRIVE!
-  int domeThrottle = 0;
-  byte directon = 0;
-  int pwmVal = 0;
-
-  domeThrottle = (map(Xbox.getAnalogHat(LeftHatX, 0), -32768, 32767, -500, 500));
-  if (domeThrottle > -DOMEDEADZONERANGE && domeThrottle < DOMEDEADZONERANGE) {
-    //stick in dead zone - don't spin dome
-    domeThrottle = 0;
-  }
-
+  // DOME DRIVE! ignore if dome automation is moving the dome
   if ( isMoving == false ) {
+    int domeThrottle = 0;
+    byte directon = 0;
+    int pwmVal = 0;
+
+    domeThrottle = (map(Xbox.getAnalogHat(LeftHatX, 0), -32768, 32767, -500, 500));
+    if (domeThrottle > -DOMEDEADZONERANGE && domeThrottle < DOMEDEADZONERANGE) {
+      //stick in dead zone - don't spin dome
+      domeThrottle = 0;
+    }
+
     if ( domeThrottle > 0 ) {
       // forward
       directon = 0;
@@ -434,6 +443,30 @@ void loop() {
 
     // sends the values to the motor controller
     analogWrite(domeSpeedPin, pwmVal);
+  }
+
+  if ( needToPlayAudio == true ) {
+    if ( randomAudioTrack == -1 ) {
+      playAudioTrack(nextAudioTrack, playing);
+    } else {
+      switch (randomAudioTrack) {
+        case 1:
+          playAudio(random(0, 14), playing);
+          break;
+        case 2:
+          playAudio(random(15, 49), playing);
+          break;
+        case 3:
+          playAudio(random(50, 57), playing);
+          break;
+        case 4:
+          playAudio(random(58, 71), playing);
+          break;
+        case 5:
+          playAudio(random(15, 49), playing);
+          break;
+      }
+    }
   }
 
   delay(1);

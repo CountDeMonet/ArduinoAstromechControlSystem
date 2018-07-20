@@ -236,7 +236,7 @@ void loop() {
 
         if (automateAction < 4) {
           // set the direction
-          if ( turnDirection > 0 ) {
+          if ( turnDirection == 1 ) {
             digitalWrite(domeDirPin, LOW);
             analogWrite(domeSpeedPin, 200);
           } else {
@@ -257,7 +257,7 @@ void loop() {
         analogWrite(domeSpeedPin, 0);
 
         // change the direction for the next go
-        if (turnDirection > 0) {
+        if (turnDirection == 1) {
           turnDirection = -1;
         } else {
           turnDirection = 1;

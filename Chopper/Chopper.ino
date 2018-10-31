@@ -103,7 +103,7 @@ unsigned long automateMillis = 0;
 byte automateDelay = random(5, 10); // set this to min and max seconds between sounds
 unsigned long autoMoveMillis = 0;
 unsigned long autoMoveDelay = 400; // how long the dome will move for
-bool isMoving = false;  // is the dome rotating due to automation
+bool isDomeMoving = false;  // is the dome rotating due to automation
 byte turnDirection = 1;  // which direction to turn
 // Action number used to randomly choose a sound effect or a dome turn
 byte automateAction = 0;
@@ -112,6 +112,7 @@ char sticknum = 0;
 char domeThrottle = 0;
 char turnThrottle = 0;
 
+boolean hasPlayedAlert = false;
 boolean firstLoadOnConnect = false;
 
 USB Usb;
@@ -163,16 +164,25 @@ void loop() {
   if (!Xbox.XboxReceiverConnected || !Xbox.Xbox360Connected[0]) {
     Sabertooth2x.drive(0);
     Sabertooth2x.turn(0);
-    digitalWrite(domeDirPin, LOW);
     analogWrite(domeSpeedPin, 0);
-    firstLoadOnConnect = false;
+
+    // if we have been connected before let us know we're powering down
+    if( firstLoadOnConnect == false && hasPlayedAlert == false ){
+      // let everyone know we lost connection
+      hasPlayedAlert = true;
+      strncpy(nextAudioTrack, "MOTIV   OGG", 12);
+      playAudioTrack(nextAudioTrack, playing);
+    }
+    
+    firstLoadOnConnect = false;    
     return;
   }
 
   // After the controller connects, Blink all the LEDs so we know drives are disengaged at start
   if (!firstLoadOnConnect) {
     firstLoadOnConnect = true;
-    strncpy(nextAudioTrack, "STARTSNDOGG", 12);
+    hasPlayedAlert = false;
+    strncpy(nextAudioTrack, "CHORTLE OGG", 12);
     needToPlayAudio = true;
     Xbox.setLedMode(ROTATING, 0);
   }
@@ -180,6 +190,8 @@ void loop() {
   if (Xbox.getButtonClick(XBOX, 0)) {
     if (Xbox.getButtonPress(L1, 0) && Xbox.getButtonPress(R1, 0)) {
       Xbox.disconnect(0);
+      strncpy(nextAudioTrack, "SHORTCKTOGG", 12);
+      needToPlayAudio = true;
     }
   }
 
@@ -188,11 +200,11 @@ void loop() {
     if (isDriveEnabled) {
       isDriveEnabled = false;
       Xbox.setLedMode(ROTATING, 0);
-      strncpy(nextAudioTrack, "ANNOYED OGG", 12);
+      strncpy(nextAudioTrack, "PATROL  OGG", 12);
       needToPlayAudio = true;
     } else {
       isDriveEnabled = true;
-      strncpy(nextAudioTrack, "CHORTLE OGG", 12);
+      strncpy(nextAudioTrack, "OVERHEREOGG", 12);
       needToPlayAudio = true;
 
       //When the drive is enabled, set our LED accordingly to indicate speed
@@ -205,13 +217,12 @@ void loop() {
       }
     }
   }
-
+  
   //Toggle automation mode with the BACK button
   if (Xbox.getButtonClick(BACK, 0)) {
-    if (isInAutomationMode) {
+    if (isInAutomationMode == true) {
       isInAutomationMode = false;
       automateAction = 0;
-      strncpy(nextAudioTrack, "OVERHEREOGG", 12);
       needToPlayAudio = true;
     } else {
       isInAutomationMode = true;
@@ -224,7 +235,7 @@ void loop() {
   if (isInAutomationMode) {
     unsigned long currentMillis = millis();
 
-    if ( isMoving == false ) {
+    if ( isDomeMoving == false ) {
       if ((unsigned long)(currentMillis - automateMillis) > (unsigned long)(automateDelay * 1000)) {
         automateMillis = millis();
         automateAction = random(1, 5);
@@ -238,14 +249,14 @@ void loop() {
           // set the direction
           if ( turnDirection == 1 ) {
             digitalWrite(domeDirPin, LOW);
-            analogWrite(domeSpeedPin, 200);
+            analogWrite(domeSpeedPin, 150);
           } else {
             digitalWrite(domeDirPin, HIGH);
-            analogWrite(domeSpeedPin, 210);
+            analogWrite(domeSpeedPin, 160);
           }
 
           autoMoveMillis = millis();
-          isMoving = true;
+          isDomeMoving = true;
         } else {
           // sets the mix, max seconds between automation actions - sounds and dome movement
           automateDelay = random(3, 10);
@@ -263,10 +274,9 @@ void loop() {
           turnDirection = 1;
         }
 
-        isMoving = false;
-
         // sets the mix, max seconds between automation actions - sounds and dome movement
         automateDelay = random(3, 10);
+        isDomeMoving = false;
       }
     }
   }
@@ -287,27 +297,15 @@ void loop() {
   }
 
   // GENERAL SOUND PLAYBACK AND DISPLAY CHANGING
-
-  // Y Button and Y combo buttons
-  if (Xbox.getButtonClick(Y, 0)) {
-    if (Xbox.getButtonPress(L1, 0)) {
-      strncpy(nextAudioTrack, "T01     OGG", 12);
-      needToPlayAudio = true;
-    } else if (Xbox.getButtonPress(L2, 0)) {
-      strncpy(nextAudioTrack, "T05     OGG", 12);
-      needToPlayAudio = true;
-    } else if (Xbox.getButtonPress(R1, 0)) {
-      strncpy(nextAudioTrack, "T09     OGG", 12);
-      needToPlayAudio = true;
-    } else {
-      needToPlayAudio = true;
-      randomAudioTrack = 1;
-    }
-  }
-
   // A Button and A combo Buttons
   if (Xbox.getButtonClick(A, 0)) {
-    if (Xbox.getButtonPress(L1, 0)) {
+    if (Xbox.getButtonPress(L2, 0) && Xbox.getButtonPress(R2, 0)) {
+      strncpy(nextAudioTrack, "CANTINA OGG", 12);               
+      needToPlayAudio = true;
+    } else if (Xbox.getButtonPress(L1, 0) && Xbox.getButtonPress(R2, 0)) {
+      strncpy(nextAudioTrack, "MAHNA   OGG", 12);               
+      needToPlayAudio = true;
+    } else if (Xbox.getButtonPress(L1, 0)) {
       strncpy(nextAudioTrack, "T02     OGG", 12);
       needToPlayAudio = true;
     } else if (Xbox.getButtonPress(L2, 0)) {
@@ -324,9 +322,15 @@ void loop() {
 
   // B Button and B combo Buttons
   if (Xbox.getButtonClick(B, 0)) {
-    if (Xbox.getButtonPress(L1, 0)) {
-      strncpy(nextAudioTrack, "T03     OGG", 12);
+    if (Xbox.getButtonPress(L2, 0) && Xbox.getButtonPress(R2, 0)) {
+      strncpy(nextAudioTrack, "REBEL   OGG", 12);               
       needToPlayAudio = true;
+    }else if (Xbox.getButtonPress(L1, 0) && Xbox.getButtonPress(R2, 0)) {
+      strncpy(nextAudioTrack, "ALIVE   OGG", 12);               
+      needToPlayAudio = true;
+    }else if (Xbox.getButtonPress(L1, 0)) {
+      strncpy(nextAudioTrack, "T03     OGG", 12);
+      needToPlayAudio = true; 
     } else if (Xbox.getButtonPress(L2, 0)) {
       strncpy(nextAudioTrack, "T07     OGG", 12);
       needToPlayAudio = true;
@@ -341,8 +345,13 @@ void loop() {
 
   // X Button and X combo Buttons
   if (Xbox.getButtonClick(X, 0)) {
-    // leia message L1+X
-    if (Xbox.getButtonPress(L1, 0)) {
+    if (Xbox.getButtonPress(L2, 0) && Xbox.getButtonPress(R2, 0)) {
+      strncpy(nextAudioTrack, "MARCH   OGG", 12);
+      needToPlayAudio = true;
+    }else if (Xbox.getButtonPress(L2, 0) && Xbox.getButtonPress(R2, 0)) {
+      strncpy(nextAudioTrack, "STYLE   OGG", 12);
+      needToPlayAudio = true;
+    }else if (Xbox.getButtonPress(L1, 0)) {
       strncpy(nextAudioTrack, "T04     OGG", 12);
       needToPlayAudio = true;
     } else if (Xbox.getButtonPress(L2, 0)) {
@@ -354,7 +363,26 @@ void loop() {
     } else {
       needToPlayAudio = true;
       randomAudioTrack = 4;
+    }
+  }
 
+  // Y Button and Y combo buttons
+  if (Xbox.getButtonClick(Y, 0)) {
+    if (Xbox.getButtonPress(L2, 0) && Xbox.getButtonPress(R2, 0)) {
+      strncpy(nextAudioTrack, "R2BDAY1 OGG", 12);                  
+      needToPlayAudio = true;
+    } else if (Xbox.getButtonPress(L1, 0)) {
+      strncpy(nextAudioTrack, "T01     OGG", 12);
+      needToPlayAudio = true;
+    } else if (Xbox.getButtonPress(L2, 0)) {
+      strncpy(nextAudioTrack, "T05     OGG", 12);
+      needToPlayAudio = true;
+    } else if (Xbox.getButtonPress(R1, 0)) {
+      strncpy(nextAudioTrack, "T09     OGG", 12);
+      needToPlayAudio = true;
+    } else {
+      needToPlayAudio = true;
+      randomAudioTrack = 1;
     }
   }
 
@@ -409,7 +437,7 @@ void loop() {
   }
 
   // DOME DRIVE! ignore if dome automation is moving the dome
-  if ( isMoving == false ) {
+  if ( isDomeMoving == false ) {
     int domeThrottle = 0;
     byte directon = 0;
     int pwmVal = 0;
@@ -463,7 +491,7 @@ void loop() {
           playAudio(random(58, 71), playing);
           break;
         case 5:
-          playAudio(random(15, 49), playing);
+          playAudio(random(15, 28), playing);
           break;
       }
     }

@@ -348,7 +348,7 @@ void loop() {
     if (Xbox.getButtonPress(L2, 0) && Xbox.getButtonPress(R2, 0)) {
       strncpy(nextAudioTrack, "MARCH   OGG", 12);
       needToPlayAudio = true;
-    }else if (Xbox.getButtonPress(L2, 0) && Xbox.getButtonPress(R2, 0)) {
+    }else if (Xbox.getButtonPress(L1, 0) && Xbox.getButtonPress(R2, 0)) {
       strncpy(nextAudioTrack, "STYLE   OGG", 12);
       needToPlayAudio = true;
     }else if (Xbox.getButtonPress(L1, 0)) {

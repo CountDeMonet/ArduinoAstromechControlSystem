@@ -233,7 +233,7 @@ void loop() {
         automateDome = false;
       } else {
         automateDome = true;
-        strncpy(nextAudioTrack, "DOODOO  OGG", 12);
+        strncpy(nextAudioTrack, "T06     OGG", 12);
         needToPlayAudio = true;
       }
     }
@@ -277,26 +277,56 @@ void loop() {
       }
     }
   }
+
+  // Hold R1 and Press Down to turn on/off audio automation
+  if (Xbox.getButtonClick(DOWN, 0)) {
+    //volume down
+    if (Xbox.getButtonPress(R1, 0)) {
+      if (automateAudio == true) {
+        automateAudio = false;
+      } else {
+        automateAudio = true;
+        strncpy(nextAudioTrack, "T05     OGG", 12);
+        needToPlayAudio = true;
+      }
+    }
+  }
   
+  if ( automateAudio ) { 
+    unsigned long currentMillis = millis();
+    if ((unsigned long)(currentMillis - audioAutomateMillis) > (unsigned long)(audioAutomateDelay * 1000)) {
+      audioAutomateMillis = millis();
+      needToPlayAudio = true;
+      randomAudioTrack = 4;
+      audioAutomateDelay = random(5, 15);
+    }
+  }
+ 
   // GENERAL SOUND PLAYBACK AND DISPLAY CHANGING
   // A Button and A combo Buttons
   if (Xbox.getButtonClick(A, 0)) {
     if (Xbox.getButtonPress(L2, 0) && Xbox.getButtonPress(R2, 0)) {
-      strncpy(nextAudioTrack, "CANTINA OGG", 12);               
+      strncpy(nextAudioTrack, "CANTINA OGG", 12);    
+      automateAudio = false;           
       needToPlayAudio = true;
     } else if (Xbox.getButtonPress(L1, 0) && Xbox.getButtonPress(R2, 0)) {
-      strncpy(nextAudioTrack, "MAHNA   OGG", 12);               
+      strncpy(nextAudioTrack, "MAHNA   OGG", 12);   
+      automateAudio = false;            
       needToPlayAudio = true;
     } else if (Xbox.getButtonPress(L1, 0)) {
       strncpy(nextAudioTrack, "T02     OGG", 12);
+      automateAudio = false;
       needToPlayAudio = true;
     } else if (Xbox.getButtonPress(L2, 0)) {
       strncpy(nextAudioTrack, "T06     OGG", 12);
+      automateAudio = false;
       needToPlayAudio = true;
     } else if (Xbox.getButtonPress(R1, 0)) {
       strncpy(nextAudioTrack, "T10     OGG", 12);
+      automateAudio = false;
       needToPlayAudio = true;
     } else {
+      automateAudio = false;
       needToPlayAudio = true;
       randomAudioTrack = 2;
     }
@@ -306,20 +336,26 @@ void loop() {
   if (Xbox.getButtonClick(B, 0)) {
     if (Xbox.getButtonPress(L2, 0) && Xbox.getButtonPress(R2, 0)) {
       strncpy(nextAudioTrack, "REBEL   OGG", 12);               
+      automateAudio = false;       
       needToPlayAudio = true;
     }else if (Xbox.getButtonPress(L1, 0) && Xbox.getButtonPress(R2, 0)) {
       strncpy(nextAudioTrack, "ALIVE   OGG", 12);               
+      automateAudio = false;       
       needToPlayAudio = true;
     }else if (Xbox.getButtonPress(L1, 0)) {
       strncpy(nextAudioTrack, "T03     OGG", 12);
+      automateAudio = false;       
       needToPlayAudio = true; 
     } else if (Xbox.getButtonPress(L2, 0)) {
       strncpy(nextAudioTrack, "T07     OGG", 12);
+      automateAudio = false;       
       needToPlayAudio = true;
     } else if (Xbox.getButtonPress(R1, 0)) {
       strncpy(nextAudioTrack, "T11     OGG", 12);
+      automateAudio = false;       
       needToPlayAudio = true;
     } else {
+      automateAudio = false;       
       needToPlayAudio = true;
       randomAudioTrack = 3;
     }
@@ -329,20 +365,26 @@ void loop() {
   if (Xbox.getButtonClick(X, 0)) {
     if (Xbox.getButtonPress(L2, 0) && Xbox.getButtonPress(R2, 0)) {
       strncpy(nextAudioTrack, "MARCH   OGG", 12);
+      automateAudio = false;       
       needToPlayAudio = true;
     }else if (Xbox.getButtonPress(L1, 0) && Xbox.getButtonPress(R2, 0)) {
       strncpy(nextAudioTrack, "STYLE   OGG", 12);
+      automateAudio = false;       
       needToPlayAudio = true;
     }else if (Xbox.getButtonPress(L1, 0)) {
       strncpy(nextAudioTrack, "T04     OGG", 12);
+      automateAudio = false;       
       needToPlayAudio = true;
     } else if (Xbox.getButtonPress(L2, 0)) {
       strncpy(nextAudioTrack, "T08     OGG", 12);
+      automateAudio = false;       
       needToPlayAudio = true;
     } else if (Xbox.getButtonPress(R1, 0)) {
       strncpy(nextAudioTrack, "T12     OGG", 12);
+      automateAudio = false;       
       needToPlayAudio = true;
     } else {
+      automateAudio = false;       
       needToPlayAudio = true;
       randomAudioTrack = 4;
     }
@@ -352,17 +394,22 @@ void loop() {
   if (Xbox.getButtonClick(Y, 0)) {
     if (Xbox.getButtonPress(L2, 0) && Xbox.getButtonPress(R2, 0)) {
       strncpy(nextAudioTrack, "R2BDAY1 OGG", 12);                  
+      automateAudio = false;       
       needToPlayAudio = true;
     } else if (Xbox.getButtonPress(L1, 0)) {
       strncpy(nextAudioTrack, "T01     OGG", 12);
+      automateAudio = false;       
       needToPlayAudio = true;
     } else if (Xbox.getButtonPress(L2, 0)) {
       strncpy(nextAudioTrack, "T05     OGG", 12);
+      automateAudio = false;       
       needToPlayAudio = true;
     } else if (Xbox.getButtonPress(R1, 0)) {
       strncpy(nextAudioTrack, "T09     OGG", 12);
+      automateAudio = false;       
       needToPlayAudio = true;
     } else {
+      automateAudio = false;       
       needToPlayAudio = true;
       randomAudioTrack = 1;
     }

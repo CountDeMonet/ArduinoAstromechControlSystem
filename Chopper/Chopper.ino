@@ -56,7 +56,7 @@ byte drivespeed = DRIVESPEED1;
 
 // the higher this number the faster the droid will spin in place, lower - easier to control.
 // Recommend beginner: 40 to 50, experienced: 50 $ up, I like 70
-const byte TURNSPEED = 40;
+const byte TURNSPEED = 60;
 // If using a speed controller for the dome, sets the top speed. You'll want to vary it potenitally
 // depending on your motor.
 const byte DOMESPEED = 230;
@@ -69,7 +69,7 @@ const int SABERTOOTHBAUDRATE = 9600;
 
 // Compensation is for deadband/deadzone checking. There's a little play in the neutral zone
 // which gets a reading of a value of something other than 0 when you're not moving the stick.
-// It may vary a bit across controllers and how broken in they are, sometimex 360 controllers
+// It may vary a bit across controllers and how broken in they are, sometimes 360 controllers
 // develop a little bit of play in the stick at the center position. You can do this with the
 // direct method calls against the Syren/Sabertooth library itself but it's not supported in all
 // serial modes so just manage and check it in software here
@@ -97,21 +97,27 @@ Adafruit_Soundboard sfx = Adafruit_Soundboard( &Serial2, NULL, SFX_RST);
 boolean isDriveEnabled = false;
 
 // Automated function variables
-// Used as a boolean to turn on/off automated functions like periodic random sounds and periodic dome turns
-boolean isInAutomationMode = false;
-unsigned long automateMillis = 0;
-byte automateDelay = random(5, 10); // set this to min and max seconds between sounds
-unsigned long autoMoveMillis = 0;
-unsigned long autoMoveDelay = 400; // how long the dome will move for
+// Used as a boolean to turn on/off automated dome turns
+boolean automateDome = false;
+unsigned long domeAutomateMillis = 0;
+byte domeAutomateDelay = random(5, 15); // set this to min and max seconds between sounds
+unsigned long domeAutoMoveMillis = 0;
+unsigned long domeAutoMoveDelay = 400; // how long the dome will move for
 bool isDomeMoving = false;  // is the dome rotating due to automation
 byte turnDirection = 1;  // which direction to turn
-// Action number used to randomly choose a sound effect or a dome turn
-byte automateAction = 0;
+
+// Used as a boolean to turn on/off automated audio chirps
+boolean automateAudio = false;
+unsigned long audioAutomateMillis = 0;
+byte audioAutomateDelay = random(5, 10); // set this to min and max seconds between sounds
+
+// throttle and stick variables
 char driveThrottle = 0;
 char sticknum = 0;
 char domeThrottle = 0;
 char turnThrottle = 0;
 
+// first bootup check params
 boolean hasPlayedAlert = false;
 boolean firstLoadOnConnect = false;
 
@@ -217,53 +223,44 @@ void loop() {
       }
     }
   }
-  
-  //Toggle automation mode with the BACK button
-  if (Xbox.getButtonClick(BACK, 0)) {
-    if (isInAutomationMode == true) {
-      isInAutomationMode = false;
-      automateAction = 0;
-      needToPlayAudio = true;
-    } else {
-      isInAutomationMode = true;
-      strncpy(nextAudioTrack, "DOODOO  OGG", 12);
-      needToPlayAudio = true;
+
+  // Automation 
+  // Hold R1 and Press Up to turn on/off dome automation
+  if (Xbox.getButtonClick(UP, 0)) {
+    // volume up
+    if (Xbox.getButtonPress(R1, 0)) {
+      if (automateDome == true) {
+        automateDome = false;
+      } else {
+        automateDome = true;
+        strncpy(nextAudioTrack, "DOODOO  OGG", 12);
+        needToPlayAudio = true;
+      }
     }
   }
 
-  // Plays random sounds or dome movements for automations when in automation mode
-  if (isInAutomationMode) {
+  // Moves the dome around from time to time when automation is turned on  
+  if (automateDome) {
     unsigned long currentMillis = millis();
 
     if ( isDomeMoving == false ) {
-      if ((unsigned long)(currentMillis - automateMillis) > (unsigned long)(automateDelay * 1000)) {
-        automateMillis = millis();
-        automateAction = random(1, 5);
-
-        if (automateAction > 1) {
-          needToPlayAudio = true;
-          randomAudioTrack = 5;
-        }
-
-        if (automateAction < 4) {
-          // set the direction
-          if ( turnDirection == 1 ) {
-            digitalWrite(domeDirPin, LOW);
-            analogWrite(domeSpeedPin, 150);
-          } else {
-            digitalWrite(domeDirPin, HIGH);
-            analogWrite(domeSpeedPin, 160);
-          }
-
-          autoMoveMillis = millis();
-          isDomeMoving = true;
+      if ((unsigned long)(currentMillis - domeAutomateMillis) > (unsigned long)(domeAutomateDelay * 1000)) {
+        domeAutomateMillis = millis();
+        
+        // set the direction
+        if ( turnDirection == 1 ) {
+          digitalWrite(domeDirPin, LOW);
+          analogWrite(domeSpeedPin, 150);
         } else {
-          // sets the mix, max seconds between automation actions - sounds and dome movement
-          automateDelay = random(3, 10);
+          digitalWrite(domeDirPin, HIGH);
+          analogWrite(domeSpeedPin, 160);
         }
+
+        domeAutoMoveMillis = millis();
+        isDomeMoving = true;
       }
     } else {
-      if ((unsigned long)(currentMillis - autoMoveMillis) > autoMoveDelay) {
+      if ((unsigned long)(currentMillis - domeAutoMoveMillis) > domeAutoMoveDelay) {
         // stop the dome
         analogWrite(domeSpeedPin, 0);
 
@@ -274,28 +271,13 @@ void loop() {
           turnDirection = 1;
         }
 
-        // sets the mix, max seconds between automation actions - sounds and dome movement
-        automateDelay = random(3, 10);
+        // sets the mix, max seconds between automation actions
+        domeAutomateMillis = random(5, 15);
         isDomeMoving = false;
       }
     }
   }
-
-  // Volume Control of MP3 Trigger
-  // Hold R1 and Press Up/down on D-pad to increase/decrease volume
-  if (Xbox.getButtonClick(UP, 0)) {
-    // volume up
-    if (Xbox.getButtonPress(R1, 0)) {
-      sfx.volUp();
-    }
-  }
-  if (Xbox.getButtonClick(DOWN, 0)) {
-    //volume down
-    if (Xbox.getButtonPress(R1, 0)) {
-      sfx.volDown();
-    }
-  }
-
+  
   // GENERAL SOUND PLAYBACK AND DISPLAY CHANGING
   // A Button and A combo Buttons
   if (Xbox.getButtonClick(A, 0)) {

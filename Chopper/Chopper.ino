@@ -188,7 +188,7 @@ void loop() {
   if (!firstLoadOnConnect) {
     firstLoadOnConnect = true;
     hasPlayedAlert = false;
-    strncpy(nextAudioTrack, "CHORTLE OGG", 12);
+    strncpy(nextAudioTrack, "STARTSNDOGG", 12);
     needToPlayAudio = true;
     Xbox.setLedMode(ROTATING, 0);
   }
@@ -196,7 +196,7 @@ void loop() {
   if (Xbox.getButtonClick(XBOX, 0)) {
     if (Xbox.getButtonPress(L1, 0) && Xbox.getButtonPress(R1, 0)) {
       Xbox.disconnect(0);
-      strncpy(nextAudioTrack, "SHORTCKTOGG", 12);
+      strncpy(nextAudioTrack, "MOTIV   OGG", 12);
       needToPlayAudio = true;
     }
   }
@@ -206,11 +206,11 @@ void loop() {
     if (isDriveEnabled) {
       isDriveEnabled = false;
       Xbox.setLedMode(ROTATING, 0);
-      strncpy(nextAudioTrack, "PATROL  OGG", 12);
+      strncpy(nextAudioTrack, "CHORTLE OGG", 12);
       needToPlayAudio = true;
     } else {
       isDriveEnabled = true;
-      strncpy(nextAudioTrack, "OVERHEREOGG", 12);
+      strncpy(nextAudioTrack, "PATROL  OGG", 12);
       needToPlayAudio = true;
 
       //When the drive is enabled, set our LED accordingly to indicate speed
@@ -230,10 +230,11 @@ void loop() {
     // volume up
     if (Xbox.getButtonPress(R1, 0)) {
       if (automateDome == true) {
+        isDomeMoving = false;
         automateDome = false;
       } else {
         automateDome = true;
-        strncpy(nextAudioTrack, "T06     OGG", 12);
+        strncpy(nextAudioTrack, "T30     OGG", 12);
         needToPlayAudio = true;
       }
     }
@@ -260,7 +261,7 @@ void loop() {
         isDomeMoving = true;
       }
     } else {
-      if ((unsigned long)(currentMillis - domeAutoMoveMillis) > domeAutoMoveDelay) {
+      if ((unsigned long)(currentMillis - domeAutoMoveMillis) > (unsigned long)(domeAutoMoveDelay)) {
         // stop the dome
         analogWrite(domeSpeedPin, 0);
 
@@ -272,7 +273,7 @@ void loop() {
         }
 
         // sets the mix, max seconds between automation actions
-        domeAutomateMillis = random(5, 15);
+        domeAutomateDelay = random(5, 15);
         isDomeMoving = false;
       }
     }
@@ -286,7 +287,7 @@ void loop() {
         automateAudio = false;
       } else {
         automateAudio = true;
-        strncpy(nextAudioTrack, "T05     OGG", 12);
+        strncpy(nextAudioTrack, "T14     OGG", 12);
         needToPlayAudio = true;
       }
     }
